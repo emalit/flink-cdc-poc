@@ -1,0 +1,39 @@
+version: "0.0.1"
+services:
+  postgres:
+    image: debezium/example-postgres:1.1
+    container_name: flink-cdc-postgres
+    hostname: postgres
+    user: postgres
+    ports:
+      - "5431:5432"
+    environment:
+      - POSTGRES_DB=main
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+  flink:
+    container_name: flink-cdc-flink
+    build:
+      context: setup_scripts
+      dockerfile: flink.dockerfile
+    ports:
+      - "8081:8081"
+      - "6123:6123"
+    command: /bin/bash -c "./bin/start-cluster.sh && sleep 3 && /usr/bin/tail -f log/*.log"
+    volumes:
+      - ./setup_scripts/flink-conf.yaml:/opt/flink/conf/flink-conf.yaml
+      - ./setup_scripts/flink/state_store/:/usr/app/state_store
+      - ./setup_scripts/flink/tmp:/usr/app/tmp
+      - ./flink/core/target:/opt/core-target
+      - ./flink/connectors/target:/opt/connectors-target
+      - ./setup_scripts/log4j.properties:/opt/flink/conf/log4j.properties
+      - ./setup_scripts/flink-output-files:/opt/flink-output-files
+      - ./paimon-flink-1.18-0.9.0.jar:/opt/flink/lib/paimon-flink-1.18-0.9.0.jar
+      - ./flink-shaded-hadoop-2-uber-2.8.3-10.0.jar:/opt/flink/lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar
+      - ./flink-sql-connector-postgres-cdc-3.0.1.jar:/opt/flink/lib/flink-sql-connector-postgres-cdc-3.0.1.jar
+      - ./jobs:/opt/jobs
+    depends_on:
+      - postgres
+networks:
+  default:
+    name: flink-cdc-network
